@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.base.json",
+  "references": [
+    { "path": "./packages/@vssue/api-github-v3/tsconfig.build.json" },
+    { "path": "./packages/@vssue/core/tsconfig.build.json" },
+    { "path": "./packages/@vssue/utils/tsconfig.build.json" }
+  ],
+  "files": []
+}

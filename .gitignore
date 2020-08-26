@@ -1,0 +1,21 @@
+# Dist files
+lib/
+
+# local env files
+.env.local
+.env.*.local
+
+# Node modules
+node_modules/
+
+# MacOS Desktop Services Store
+.DS_Store
+
+# Log files
+*.log
+
+# Typescript build info
+*.tsbuildinfo
+
+# Coverage directory
+coverage/

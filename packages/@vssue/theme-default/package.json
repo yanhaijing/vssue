@@ -1,0 +1,38 @@
+{
+  "name": "@vssue/theme-default",
+  "version": "2.0.0-alpha.0",
+  "description": "Vssue theme default",
+  "keywords": [
+    "comment",
+    "issue",
+    "vue"
+  ],
+  "homepage": "https://vssue.js.org",
+  "bugs": {
+    "url": "https://github.com/meteorlxy/vssue/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/meteorlxy/vssue.git"
+  },
+  "license": "MIT",
+  "author": "meteorlxy <meteor.lxy@foxmail.com>",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "files": [
+    "lib"
+  ],
+  "scripts": {
+    "build": "rimraf lib && tsc -p tsconfig.build.json"
+  },
+  "dependencies": {
+    "@vssue/core": "2.0.0-alpha.0",
+    "@vssue/utils": "2.0.0-alpha.0",
+    "github-markdown-css": "^4.0.0",
+    "vue": "3.0.0-rc.6",
+    "vue-i18n": "v9.0.0-alpha.13"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

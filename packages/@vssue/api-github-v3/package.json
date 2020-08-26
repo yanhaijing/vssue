@@ -1,0 +1,35 @@
+{
+  "name": "@vssue/api-github-v3",
+  "version": "2.0.0-alpha.0",
+  "description": "Vssue api for github v3",
+  "keywords": [
+    "comment",
+    "issue",
+    "vue"
+  ],
+  "homepage": "https://vssue.js.org",
+  "bugs": {
+    "url": "https://github.com/meteorlxy/vssue/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/meteorlxy/vssue.git"
+  },
+  "license": "MIT",
+  "author": "meteorlxy <meteor.lxy@foxmail.com>",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "files": [
+    "lib"
+  ],
+  "scripts": {
+    "prepublishOnly": "rimraf lib && tsc -p tsconfig.build.json"
+  },
+  "dependencies": {
+    "@vssue/core": "^2.0.0-alpha.0",
+    "@vssue/utils": "^2.0.0-alpha.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
