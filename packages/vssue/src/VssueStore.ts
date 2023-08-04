@@ -35,6 +35,8 @@ class VssueStore extends Vue implements Vssue.Store {
 
   comments: VssueAPI.Comments | null = null;
 
+  issueAwardEmoji: any[] | null = [];
+
   query: VssueAPI.Query = {
     page: 1,
     perPage: 10,
@@ -146,6 +148,8 @@ class VssueStore extends Vue implements Vssue.Store {
 
       // init comments
       await this.initComments();
+
+      await this.initIssueAwardEmoji();
     } catch (e) {
       if (e.response && [401, 403].includes(e.response.status)) {
         // in some cases, require login to load comments
@@ -205,6 +209,19 @@ class VssueStore extends Vue implements Vssue.Store {
       await this.handleAuth();
     } finally {
       this.isInitializing = false;
+    }
+  }
+
+  async initIssueAwardEmoji(): Promise<void> {
+    if (!this.API || !this.options) return;
+
+    if (this.issue) {
+      const issueAwardEmoji = await this.API.getIssueAwardEmoji({
+        accessToken: this.accessToken,
+        issueId: this.issue.id,
+      });
+      // console.log('issueAwardEmoji', issueAwardEmoji);
+      this.issueAwardEmoji = issueAwardEmoji;
     }
   }
 

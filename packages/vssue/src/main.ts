@@ -12,6 +12,13 @@ const VssuePlugin: Vssue.Plugin = {
     if (this.installed) {
       return false;
     }
+
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href =
+      'https://cdnjs.cloudflare.com/ajax/libs/hint.css/2.7.0/hint.css';
+    document.head.appendChild(link);
+
     this.installed = true;
 
     Vue.component('Vssue', {

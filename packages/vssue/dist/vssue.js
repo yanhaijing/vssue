@@ -4,7 +4,7 @@
  * @version v1.4.8
  * @link https://vssue.js.org
  * @license MIT
- * @copyright 2018-2021 meteorlxy
+ * @copyright 2018-2023 meteorlxy
  */
 
 import { Prop, Inject, Component, Vue as Vue$1, Watch, Provide } from 'vue-property-decorator';
@@ -115,6 +115,56 @@ function normalizeComponent(template, style, script, scopeId, isFunctionalTempla
 
 const isOldIE = typeof navigator !== 'undefined' &&
     /msie [6-9]\\b/.test(navigator.userAgent.toLowerCase());
+function createInjector(context) {
+    return (id, style) => addStyle(id, style);
+}
+let HEAD;
+const styles = {};
+function addStyle(id, css) {
+    const group = isOldIE ? css.media || 'default' : id;
+    const style = styles[group] || (styles[group] = { ids: new Set(), styles: [] });
+    if (!style.ids.has(id)) {
+        style.ids.add(id);
+        let code = css.source;
+        if (css.map) {
+            // https://developer.chrome.com/devtools/docs/javascript-debugging
+            // this makes source maps inside style tags work properly in Chrome
+            code += '\n/*# sourceURL=' + css.map.sources[0] + ' */';
+            // http://stackoverflow.com/a/26603875
+            code +=
+                '\n/*# sourceMappingURL=data:application/json;base64,' +
+                    btoa(unescape(encodeURIComponent(JSON.stringify(css.map)))) +
+                    ' */';
+        }
+        if (!style.element) {
+            style.element = document.createElement('style');
+            style.element.type = 'text/css';
+            if (css.media)
+                style.element.setAttribute('media', css.media);
+            if (HEAD === undefined) {
+                HEAD = document.head || document.getElementsByTagName('head')[0];
+            }
+            HEAD.appendChild(style.element);
+        }
+        if ('styleSheet' in style.element) {
+            style.styles.push(code);
+            style.element.styleSheet.cssText = style.styles
+                .filter(Boolean)
+                .join('\n');
+        }
+        else {
+            const index = style.ids.size - 1;
+            const textNode = document.createTextNode(code);
+            const nodes = style.element.childNodes;
+            if (nodes[index])
+                style.element.removeChild(nodes[index]);
+            if (nodes.length)
+                style.element.insertBefore(textNode, nodes[index]);
+            else
+                style.element.appendChild(textNode);
+        }
+    }
+}
 
 /* script */
 const __vue_script__ = script;
@@ -906,6 +956,9 @@ var __vue_staticRenderFns__$5 = [];
 let VssueStatus = class VssueStatus extends Vue$1 {
     get status() {
         if (this.vssue.isFailed) {
+            if (!this.vssue.user) {
+                return 'loginRequired';
+            }
             return 'failed';
         }
         else if (this.vssue.isInitializing) {
@@ -1046,12 +1099,82 @@ var __vue_staticRenderFns__$7 = [];
   );
 
 let VssueHeader = class VssueHeader extends Vue$1 {
+    constructor() {
+        super(...arguments);
+        this.likeLoading = false;
+    }
+    get likes() {
+        var _a;
+        return (_a = this.vssue.issueAwardEmoji, (_a !== null && _a !== void 0 ? _a : [])).filter(item => item.name === 'thumbsup');
+    }
+    get likeCount() {
+        return this.likes.length;
+    }
+    get myLike() {
+        var _a;
+        return (_a = this.vssue.issueAwardEmoji) === null || _a === void 0 ? void 0 : _a.find(item => {
+            var _a;
+            return item.name === 'thumbsup' &&
+                item.user.username === ((_a = this.vssue.user) === null || _a === void 0 ? void 0 : _a.username);
+        });
+    }
+    get isLiked() {
+        return !!this.myLike;
+    }
+    toggleLike() {
+        var _a, _b, _c;
+        if (!this.vssue.user) {
+            if (window.confirm('点赞需要登录，点击确定即将跳转登录页面')) {
+                this.vssue.login();
+            }
+            return;
+        }
+        if (!this.vssue.issue) {
+            return;
+        }
+        this.likeLoading = true;
+        if (this.isLiked) {
+            this.vssue.API.deleteIssueAwardEmoji({
+                accessToken: this.vssue.accessToken,
+                issueId: (_a = this.vssue.issue) === null || _a === void 0 ? void 0 : _a.id,
+                emojId: (_b = this.myLike) === null || _b === void 0 ? void 0 : _b.id,
+            })
+                .then(() => {
+                return this.vssue.initIssueAwardEmoji();
+            })
+                .then(() => {
+                this.likeLoading = false;
+            }, () => {
+                this.likeLoading = false;
+            });
+        }
+        else {
+            this.vssue.API.postIssueAwardEmoji({
+                accessToken: this.vssue.accessToken,
+                issueId: (_c = this.vssue.issue) === null || _c === void 0 ? void 0 : _c.id,
+                name: 'thumbsup',
+            })
+                .then(() => {
+                return this.vssue.initIssueAwardEmoji();
+            })
+                .then(() => {
+                this.likeLoading = false;
+                this.vssue.initIssueAwardEmoji();
+            }, () => {
+                this.likeLoading = false;
+            });
+        }
+    }
 };
 __decorate([
     Inject()
 ], VssueHeader.prototype, "vssue", void 0);
 VssueHeader = __decorate([
-    Component
+    Component({
+        components: {
+            VssueIcon: __vue_component__$2,
+        },
+    })
 ], VssueHeader);
 var script$b = VssueHeader;
 
@@ -1059,7 +1182,13 @@ var script$b = VssueHeader;
 const __vue_script__$b = script$b;
 
 /* template */
-var __vue_render__$8 = function () {var _vm=this;var _h=_vm.$createElement;var _c=_vm._self._c||_h;return _c('div',{staticClass:"vssue-header"},[_c('a',{staticClass:"vssue-header-comments-count",attrs:{"href":_vm.vssue.issue ? _vm.vssue.issue.link : null,"target":"_blank","rel":"noopener noreferrer"}},[_c('span',[_vm._v("\n      "+_vm._s(_vm.vssue.comments
+var __vue_render__$8 = function () {var _vm=this;var _h=_vm.$createElement;var _c=_vm._self._c||_h;return _c('div',{staticClass:"vssue-header"},[_c('span',[_c('span',{staticClass:"vssue-comment-like",on:{"click":function($event){return _vm.toggleLike()}}},[_c('VssueIcon',{attrs:{"name":_vm.likeLoading ? 'loading' : 'like'}}),_vm._v(" "),_c('span',{staticClass:"vssue-comment-like-title"},[_vm._v("\n        "+_vm._s(_vm.isLiked ? '已赞' : '点赞')+"\n      ")])],1),_vm._v("\n    •\n    "),_c('span',_vm._l((_vm.likes),function(like){return _c('a',{key:like.id,staticClass:"vssue-comment-avatar hint--bottom",attrs:{"target":"_blank","href":like.user.web_url,"aria-label":like.user.name}},[_c('img',{attrs:{"src":like.user.avatar_url,"width":"20","height":"20"}})])}),0),_vm._v(" "),_c('span',{staticClass:"vssue-comment-reaction-number"},[_vm._v("\n      "+_vm._s(!_vm.vssue.user
+          ? "请先登录才能点赞"
+          : !_vm.vssue.issue
+          ? "请先创建 Issue 才能点赞"
+          : _vm.likeCount === 0
+          ? "成为第一个赞同者"
+          : (_vm.likeCount + "人赞同"))+"\n    ")])]),_vm._v(" "),_c('a',{staticClass:"vssue-header-comments-count",attrs:{"href":_vm.vssue.issue ? _vm.vssue.issue.link : null,"target":"_blank","rel":"noopener noreferrer"}},[_c('span',[_vm._v("\n      "+_vm._s(_vm.vssue.comments
           ? _vm.vssue.$tc('comments', _vm.vssue.comments.count, {
               count: _vm.vssue.comments.count,
             })
@@ -1067,15 +1196,17 @@ var __vue_render__$8 = function () {var _vm=this;var _h=_vm.$createElement;var _
 var __vue_staticRenderFns__$8 = [];
 
   /* style */
-  const __vue_inject_styles__$b = undefined;
+  const __vue_inject_styles__$b = function (inject) {
+    if (!inject) return
+    inject("data-v-3dfae974_0", { source: ".vssue-comment-like{cursor:pointer}.vssue-comment-like .vssue-icon-like{font-size:22px}.vssue-comment-like-title{color:#3eaf7c}.vssue-header-comments-count{float:right}.vssue-header-powered-by{display:none}.vssue-comment-avatar{display:inline-block;margin-left:3px;line-height:20px}.vssue-comment-avatar img{border-radius:50%;vertical-align:bottom}.vssue .vssue-header{overflow:visible}", map: undefined, media: undefined });
+
+  };
   /* scoped */
   const __vue_scope_id__$b = undefined;
   /* module identifier */
   const __vue_module_identifier__$b = undefined;
   /* functional template */
   const __vue_is_functional_template__$b = false;
-  /* style inject */
-  
   /* style inject SSR */
   
   /* style inject shadow dom */
@@ -1090,7 +1221,7 @@ var __vue_staticRenderFns__$8 = [];
     __vue_is_functional_template__$b,
     __vue_module_identifier__$b,
     false,
-    undefined,
+    createInjector,
     undefined,
     undefined
   );
@@ -1183,6 +1314,49 @@ const messages$1 = {
 
 const messages$2 = {
     // auth
+    login: '使用 {platform} 登入',
+    logout: '登出',
+    currentUser: '當前用戶',
+    // comment input
+    loading: '載入中',
+    submit: '提交',
+    submitting: '發表中',
+    submitComment: '發表評論',
+    cancel: '取消',
+    edit: '編輯',
+    editMode: '編輯模式',
+    delete: '刪除',
+    reply: '回覆',
+    // reactions
+    heart: '喜歡',
+    like: '贊',
+    unlike: '踩',
+    // pagination
+    perPage: '每頁評論數',
+    sort: '點擊改變排序方式',
+    page: '頁數',
+    prev: '上一頁',
+    next: '下一頁',
+    // hint
+    comments: '評論 | {count} 條評論 | {count} 條評論',
+    loginToComment: '使用 {platform} 帳號登入後發表評論',
+    placeholder: '留下你的評論丨支持 Markdown 語法丨Ctrl + Enter 發表評論',
+    noLoginPlaceHolder: '登入後才能發表評論丨支持 Markdown 語法',
+    // status
+    failed: '評論加載失敗',
+    initializing: '正在初始化...',
+    issueNotCreated: '點擊創建 Issue',
+    loadingComments: '正在加載評論...',
+    loginRequired: '登入後查看評論',
+    noComments: '還沒有評論，來發表第一條評論吧！',
+    // alerts
+    reactionGiven: `已經點擊過 '{reaction}' 了`,
+    deleteConfirm: '確認要刪除該評論嗎？',
+    deleteFailed: '評論刪除失敗',
+};
+
+const messages$3 = {
+    // auth
     login: 'Entrar com {platform}',
     logout: 'Sair',
     currentUser: 'Usuário Atual',
@@ -1224,7 +1398,7 @@ const messages$2 = {
     deleteFailed: 'Falha ao apagar comentário',
 };
 
-const messages$3 = {
+const messages$4 = {
     // auth
     login: '{platform} でログイン',
     logout: 'ログアウト',
@@ -1267,7 +1441,7 @@ const messages$3 = {
     deleteFailed: 'コメントの削除に失敗しました',
 };
 
-const messages$4 = {
+const messages$5 = {
     // auth
     login: 'התחברו עם {platform}',
     logout: 'התנתקו',
@@ -1310,6 +1484,92 @@ const messages$4 = {
     deleteFailed: 'כשלון במחיקת התגובה',
 };
 
+const messages$6 = {
+    // auth
+    login: '{platform} 로그인',
+    logout: '로그아웃',
+    currentUser: '현재 유저',
+    // comment input
+    loading: '로딩중',
+    submit: '등록',
+    submitting: '등록중',
+    submitComment: '댓글 등록',
+    cancel: '취소',
+    edit: '편집',
+    editMode: '편집 모드',
+    delete: '삭제',
+    reply: '회신',
+    // reactions
+    heart: '하트',
+    like: '좋아요',
+    unlike: '싫어요',
+    // pagination
+    perPage: '댓글 / 페이지',
+    sort: '클릭하여 정렬 방식 변경',
+    page: '페이지',
+    prev: '이전 페이지',
+    next: '다음 페이지',
+    // hint
+    comments: '댓글 | {count}개의 댓글 | {count}개의 댓글',
+    loginToComment: '댓글을 남기려면 {platform} 로그인이 필요합니다.',
+    placeholder: '댓글을 입력해주세요. 마크다운 문법을 지원합니다. Ctrl + Enter 단축키로 등록됩니다.',
+    noLoginPlaceHolder: '로그인 후 댓글을 남겨주세요. 마크다운 문법을 지원합니다.',
+    // status
+    failed: '댓글 불러오기에 실패하였습니다',
+    initializing: '초기화중...',
+    issueNotCreated: '클릭하여 새 이슈를 생성합니다',
+    loadingComments: '댓글을 불러오는 중입니다...',
+    loginRequired: '댓글을 보려면 로그인이 필요합니다',
+    noComments: '댓글이 하나도 없습니다. 첫 댓글을 남겨보세요!',
+    // alerts
+    reactionGiven: `이미 '{reaction}' 반응을 남겼습니다`,
+    deleteConfirm: '정말 댓글을 삭제하시겠습니까?',
+    deleteFailed: '댓글 삭제에 실패하였습니다',
+};
+
+const messages$7 = {
+    // auth
+    login: 'Se connecter avec {platform}',
+    logout: 'Se déconnecter',
+    currentUser: 'Utilisateur actuel',
+    // comment input
+    loading: 'Chargement',
+    submit: 'Poster',
+    submitting: "En cours d'envoi",
+    submitComment: 'Ajouter un commentaire',
+    cancel: 'Annuler',
+    edit: 'Éditer',
+    editMode: 'Mode édition',
+    delete: 'Supprimer',
+    reply: 'Répondre',
+    // reactions
+    heart: 'Adorer',
+    like: 'Approuver',
+    unlike: 'Désapprouver',
+    // pagination
+    perPage: 'Commentaires par pages',
+    sort: "Cliquez pour changer l'ordre de tri",
+    page: 'Page',
+    prev: 'Page précédente',
+    next: 'Page suivante',
+    // hint
+    comments: 'Commentaires | {count} Commentaires | {count} Commentaires',
+    loginToComment: 'Se connecter avec votre compte {platform} pour laisser un commentaire',
+    placeholder: 'Laisser un commentaire. Le Markdown est supporté. Ctrl + Enter pour poster.',
+    noLoginPlaceHolder: 'Connectez-vous pour laisser un commentaire. Le Markdown est supporté. ',
+    // status
+    failed: 'Impossible de charger les commentaires',
+    initializing: 'Initialisation...',
+    issueNotCreated: 'Cliquez pour créer un commentaire',
+    loadingComments: 'Chargment des commentaires...',
+    loginRequired: 'Se connecter pour voir les commentaires',
+    noComments: "Il n'y a pas de commentaire pour le moment. Laissez le premier commentaire !",
+    // alerts
+    reactionGiven: `Réaction '{reaction}' déjà donnée`,
+    deleteConfirm: 'Voulez-vous vraiment supprimer ce commentaire?',
+    deleteFailed: 'Impossible de créer le commentaire',
+};
+
 if (!Object.prototype.hasOwnProperty.call(Vue, '$i18n')) {
     Vue.use(VueI18n);
 }
@@ -1321,12 +1581,17 @@ const i18n = new VueI18n({
         'en-US': messages,
         zh: messages$1,
         'zh-CN': messages$1,
-        pt: messages$2,
-        'pt-BR': messages$2,
-        ja: messages$3,
-        'ja-JP': messages$3,
-        he: messages$4,
-        'he-IL': messages$4,
+        'zh-TW': messages$2,
+        pt: messages$3,
+        'pt-BR': messages$3,
+        ja: messages$4,
+        'ja-JP': messages$4,
+        he: messages$5,
+        'he-IL': messages$5,
+        ko: messages$6,
+        'ko-KR': messages$6,
+        fr: messages$7,
+        'fr-FR': messages$7,
     },
 });
 
@@ -1341,6 +1606,7 @@ let VssueStore = class VssueStore extends Vue$1 {
         this.user = null;
         this.issue = null;
         this.comments = null;
+        this.issueAwardEmoji = [];
         this.query = {
             page: 1,
             perPage: 10,
@@ -1435,6 +1701,7 @@ let VssueStore = class VssueStore extends Vue$1 {
             await this.initStore();
             // init comments
             await this.initComments();
+            await this.initIssueAwardEmoji();
         }
         catch (e) {
             if (e.response && [401, 403].includes(e.response.status)) {
@@ -1491,6 +1758,18 @@ let VssueStore = class VssueStore extends Vue$1 {
         }
         finally {
             this.isInitializing = false;
+        }
+    }
+    async initIssueAwardEmoji() {
+        if (!this.API || !this.options)
+            return;
+        if (this.issue) {
+            const issueAwardEmoji = await this.API.getIssueAwardEmoji({
+                accessToken: this.accessToken,
+                issueId: this.issue.id,
+            });
+            // console.log('issueAwardEmoji', issueAwardEmoji);
+            this.issueAwardEmoji = issueAwardEmoji;
         }
     }
     /**
@@ -1807,6 +2086,9 @@ let Vssue = class Vssue extends Vue$1 {
         this.vssue.setOptions(this.options);
         // init vssue
         this.vssue.init();
+        setTimeout(() => {
+            console.log('vssue init', this.vssue);
+        }, 3000);
     }
 };
 __decorate([
@@ -1892,6 +2174,11 @@ const VssuePlugin = {
         if (this.installed) {
             return false;
         }
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href =
+            'https://cdnjs.cloudflare.com/ajax/libs/hint.css/2.7.0/hint.css';
+        document.head.appendChild(link);
         this.installed = true;
         Vue.component('Vssue', {
             functional: true,

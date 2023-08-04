@@ -15,11 +15,11 @@ const {
 } = require('./util');
 
 const browserEntries = [
-  'vssue.bitbucket',
-  'vssue.gitea',
-  'vssue.gitee',
-  'vssue.github',
-  'vssue.github-v4',
+  // 'vssue.bitbucket',
+  // 'vssue.gitea',
+  // 'vssue.gitee',
+  // 'vssue.github',
+  // 'vssue.github-v4',
   'vssue.gitlab',
 ];
 

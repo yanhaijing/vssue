@@ -91,11 +91,15 @@ export default class GitlabV4 implements VssueAPI.Instance {
    * @see https://docs.gitlab.com/ce/api/oauth2.html#1-requesting-authorization-code
    */
   redirectAuth(): void {
+    // 下面这行代码是自己改的
+    localStorage.setItem('gitlab.redirect', window.location.href);
     window.location.href = buildURL(
       concatURL(this.baseURL, 'oauth/authorize'),
       {
         client_id: this.clientId,
-        redirect_uri: window.location.href,
+        // redirect_uri: window.location.href,
+        // 下面这行代码是自己改的
+        redirect_uri: window.location.origin + '/login',
         response_type: 'token',
         state: this.state,
       }
@@ -226,6 +230,65 @@ export default class GitlabV4 implements VssueAPI.Instance {
       }
     );
     return normalizeIssue(data);
+  }
+
+  async getIssueAwardEmoji({
+    accessToken,
+    issueId,
+  }: {
+    accessToken: VssueAPI.AccessToken;
+    issueId?: string | number;
+  }): Promise<any[] | null> {
+    const options: AxiosRequestConfig = {};
+
+    if (accessToken) {
+      options.headers = {
+        Authorization: `Bearer ${accessToken}`,
+      };
+    }
+
+    const { data } = await this.$http.get<any[]>(
+      `projects/${this._encodedRepo}/issues/${issueId}/award_emoji`,
+      options
+    );
+    return data;
+  }
+
+  async postIssueAwardEmoji({
+    accessToken,
+    issueId,
+    name,
+  }: {
+    accessToken: VssueAPI.AccessToken;
+    issueId: string | number;
+    name: string;
+  }): Promise<any> {
+    const { data } = await this.$http.post<any>(
+      `projects/${this._encodedRepo}/issues/${issueId}/award_emoji`,
+      { name },
+      {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      }
+    );
+    return data;
+  }
+
+  async deleteIssueAwardEmoji({
+    accessToken,
+    issueId,
+    emojId,
+  }: {
+    accessToken: VssueAPI.AccessToken;
+    issueId: string | number;
+    emojId: number;
+  }): Promise<any> {
+    const { data } = await this.$http.delete<any>(
+      `projects/${this._encodedRepo}/issues/${issueId}/award_emoji/${emojId}`,
+      {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      }
+    );
+    return data;
   }
 
   /**

@@ -78,6 +78,9 @@ export default class Vssue extends Vue {
 
     // init vssue
     this.vssue.init();
+    setTimeout(() => {
+      console.log('vssue init', this.vssue);
+    }, 3000);
   }
 }
 </script>

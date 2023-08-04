@@ -37,6 +37,9 @@ export default class VssueStatus extends Vue {
 
   get status(): string | null {
     if (this.vssue.isFailed) {
+      if (!this.vssue.user) {
+        return 'loginRequired';
+      }
       return 'failed';
     } else if (this.vssue.isInitializing) {
       return 'initializing';
